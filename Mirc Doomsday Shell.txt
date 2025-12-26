@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>CLI OS - Mobile Terminal v1.0.4</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @font-face {
+            font-family: 'Fixedsys';
+            src: url('https://fonts.cdnfonts.com/s/14876/Fixedsys500c.woff') format('woff');
+        }
+
+        :root {
+            --cli-bg: #0a0a0a;
+            --cli-green: #00ff41;
+            --cli-dim-green: #003b00;
+            --cli-border: #333;
+        }
+
+        body {
+            background-color: #000;
+            color: var(--cli-green);
+            font-family: 'Fixedsys', 'Courier New', monospace;
+            height: 100vh;
+            margin: 0;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            text-shadow: 0 0 5px rgba(0, 255, 65, 0.5);
+        }
+
+        .terminal-window {
+            flex-grow: 1;
+            padding: 10px;
+            overflow-y: auto;
+            font-size: 12px;
+            line-height: 1.4;
+            display: flex;
+            flex-direction: column;
+            background: linear-gradient(180deg, rgba(10,10,10,1) 0%, rgba(5,20,5,1) 100%);
+        }
+
+        .cli-header {
+            background: #1a1a1a;
+            border-bottom: 1px solid var(--cli-border);
+            padding: 8px 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 10px;
+            letter-spacing: 1px;
+        }
+
+        .cli-input-wrapper {
+            background: #000;
+            border-top: 1px solid var(--cli-border);
+            padding: 10px;
+            display: flex;
+            align-items: center;
+        }
+
+        .cursor {
+            display: inline-block;
+            width: 8px;
+            height: 14px;
+            background: var(--cli-green);
+            animation: blink 1s infinite;
+            margin-left: 4px;
+            vertical-align: middle;
+        }
+
+        @keyframes blink { 0%, 49% { opacity: 1; } 50%, 100% { opacity: 0; } }
+
+        .system-stat {
+            font-size: 9px;
+            color: #888;
+            border: 1px solid #333;
+            padding: 2px 6px;
+            border-radius: 3px;
+        }
+
+        .packet-msg { border-left: 2px solid var(--cli-green); padding-left: 8px; margin-bottom: 4px; }
+        .timestamp { color: var(--cli-dim-green); margin-right: 6px; }
+        
+        /* Mobile Keyboard Simulation */
+        .v-keyboard {
+            background: #111;
+            display: grid;
+            grid-template-columns: repeat(10, 1fr);
+            gap: 4px;
+            padding: 8px;
+            border-top: 1px solid #333;
+        }
+        .key {
+            background: #222;
+            color: #fff;
+            text-align: center;
+            padding: 10px 0;
+            border-radius: 4px;
+            font-size: 14px;
+            cursor: pointer;
+            border-bottom: 2px solid #000;
+        }
+        .key:active { background: var(--cli-green); color: #000; }
+        .key-wide { grid-column: span 2; }
+
+        .crt-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.1) 50%), 
+                        linear-gradient(90deg, rgba(255, 0, 0, 0.03), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.03));
+            background-size: 100% 2px, 3px 100%;
+            pointer-events: none;
+            z-index: 999;
+        }
+    </style>
+</head>
+<body>
+    <div class="crt-overlay"></div>
+
+    <!-- System Header -->
+    <div class="cli-header">
+        <div class="flex gap-4">
+            <span>TERMINAL OS v1.0.4</span>
+            <span class="system-stat">CPU: <span id="cpu-load">14%</span></span>
+            <span class="system-stat">RAM: 422MB/512MB</span>
+        </div>
+        <div class="flex gap-2">
+            <span id="net-id" class="text-white bg-blue-900 px-1">IRCNET-E</span>
+            <span id="clock" class="text-gray-400">12:45:01</span>
+        </div>
+    </div>
+
+    <!-- Main Terminal Area -->
+    <div id="terminal" class="terminal-window">
+        <div class="mb-4">
+            <div class="text-white">*** CLI BOOT SEQUENCE COMPLETE</div>
+            <div class="text-white">*** TARGET: #WAREZ (Users: <span id="user-count">2491</span>)</div>
+            <div class="text-gray-500">--------------------------------------------------</div>
+        </div>
+        <div id="output"></div>
+    </div>
+
+    <!-- Input Bar -->
+    <div class="cli-input-wrapper">
+        <span class="mr-2 text-white">root@mobile:~$</span>
+        <span id="current-command" class="text-green-400"></span>
+        <span class="cursor"></span>
+    </div>
+
+    <!-- Mobile Virtual Keyboard -->
+    <div class="v-keyboard">
+        <div class="key" onclick="press('Q')">Q</div><div class="key" onclick="press('W')">W</div><div class="key" onclick="press('E')">E</div>
+        <div class="key" onclick="press('R')">R</div><div class="key" onclick="press('T')">T</div><div class="key" onclick="press('Y')">Y']</div>
+        <div class="key" onclick="press('U')">U</div><div class="key" onclick="press('I')">I</div><div class="key" onclick="press('O')">O</div>
+        <div class="key" onclick="press('P')">P</div>
+        
+        <div class="key" onclick="press('A')">A</div><div class="key" onclick="press('S')">S</div><div class="key" onclick="press('D')">D</div>
+        <div class="key" onclick="press('F')">F</div><div class="key" onclick="press('G')">G</div><div class="key" onclick="press('H')">H</div>
+        <div class="key" onclick="press('J')">J</div><div class="key" onclick="press('K')">K</div><div class="key" onclick="press('L')">L</div>
+        <div class="key" onclick="backspace()">DEL</div>
+
+        <div class="key" onclick="press('/')">/</div><div class="key" onclick="press('Z')">Z</div><div class="key" onclick="press('X')">X</div>
+        <div class="key" onclick="press('C')">C</div><div class="key" onclick="press('V')">V</div><div class="key" onclick="press('B')">B</div>
+        <div class="key" onclick="press('N')">N</div><div class="key" onclick="press('M')">M</div><div class="key" onclick="press('.')">.</div>
+        <div class="key" onclick="submitCmd()">RET</div>
+
+        <div class="key key-wide" onclick="press(' ')">SPACE</div>
+        <div class="key key-wide" onclick="press('GET ')">GET</div>
+        <div class="key key-wide" onclick="clearTerm()">CLR</div>
+        <div class="key key-wide" onclick="location.reload()">REBOOT</div>
+    </div>
+
+    <script>
+        const movies = ["Gladiator", "Memento", "Snatch", "The.Matrix", "Kill.Bill", "300", "Avatar", "Inception"];
+        const groups = ["DiAMOND", "aXXo", "RELOADED", "SKIDROW", "RAZOR1911"];
+        let currentCmd = "";
+        
+        function press(char) {
+            currentCmd += char;
+            document.getElementById('current-command').innerText = currentCmd;
+        }
+
+        function backspace() {
+            currentCmd = currentCmd.slice(0, -1);
+            document.getElementById('current-command').innerText = currentCmd;
+        }
+
+        function clearTerm() {
+            document.getElementById('output').innerHTML = "";
+            log("System", "Terminal buffer cleared.");
+        }
+
+        function log(sender, msg, color = "var(--cli-green)") {
+            const out = document.getElementById('output');
+            const time = new Date().toLocaleTimeString('en-GB', {hour: '2-digit', minute:'2-digit', second:'2-digit'});
+            const div = document.createElement('div');
+            div.className = "packet-msg";
+            div.innerHTML = `<span class="timestamp">[${time}]</span> <span style="color:white">&lt;${sender}&gt;</span> <span style="color:${color}">${msg}</span>`;
+            out.appendChild(div);
+            document.getElementById('terminal').scrollTop = document.getElementById('terminal').scrollHeight;
+        }
+
+        function submitCmd() {
+            if(!currentCmd) return;
+            log("User", currentCmd, "#fff");
+            
+            if(currentCmd.includes("GET")) {
+                log("System", "Initializing DCC handshake for payload...");
+                setTimeout(() => log("PacketServ", "Transferring data at 200KB/s...", "#8a2be2"), 1000);
+            } else if(currentCmd === "HELP") {
+                log("System", "Available: GET [pack], CLR, REBOOT, LIST");
+            } else {
+                log("System", "Command not recognized. Type HELP.");
+            }
+            
+            currentCmd = "";
+            document.getElementById('current-command').innerText = "";
+        }
+
+        // Scene Burst Logic
+        function startBurst() {
+            setInterval(() => {
+                const movie = movies[Math.floor(Math.random()*movies.length)];
+                const grp = groups[Math.floor(Math.random()*groups.length)];
+                const year = 2000 + Math.floor(Math.random()*11);
+                const packet = Math.floor(Math.random()*20000);
+                log("PacketServ", `[PACKET #${packet}] ${movie}.${year}.DVDRip.XviD-${grp}.rar (700MB)`);
+            }, 3000);
+
+            // Flux stats
+            setInterval(() => {
+                document.getElementById('cpu-load').innerText = (Math.floor(Math.random()*40) + 10) + "%";
+                const userCount = Math.floor(Math.random() * (2902 - 492 + 1)) + 492;
+                document.getElementById('user-count').innerText = userCount;
+                document.getElementById('clock').innerText = new Date().toLocaleTimeString();
+            }, 2000);
+        }
+
+        window.onload = () => {
+            log("System", "Kernel loaded. mIRC-Bridge established.");
+            log("System", "Scanning networks... IRCnet found.");
+            startBurst();
+        };
+    </script>
+</body>
+</html>

@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+   <title>mIRC v2.7 #IRCnet #QuakeNet #EFnet #DALnet</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @font-face {
+            font-family: 'Fixedsys';
+            src: url('https://fonts.cdnfonts.com/s/14876/Fixedsys500c.woff') format('woff');
+        }
+
+        :root {
+            --mirc-bg: #ffffff;
+            --mirc-grey: #c0c0c0;
+            --mirc-dark-grey: #808080;
+            --mirc-blue: #000080;
+            --mirc-text: #000000;
+        }
+
+        body {
+            background-color: #3a6ea5;
+            color: var(--mirc-text);
+            font-family: 'Fixedsys', 'Courier New', monospace;
+            height: 100vh;
+            margin: 0;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .window-frame {
+            background: var(--mirc-grey);
+            border: 2px solid;
+            border-color: #fff var(--mirc-dark-grey) var(--mirc-dark-grey) #fff;
+            display: flex;
+            flex-direction: column;
+            flex-grow: 1;
+            margin: 2px;
+            box-shadow: 1px 1px 0px #000;
+        }
+
+        .title-bar {
+            background: linear-gradient(90deg, var(--mirc-blue), #1084d0);
+            color: white;
+            padding: 3px 6px;
+            font-size: 12px;
+            font-weight: bold;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            height: 24px;
+        }
+
+        .content-area {
+            background: white;
+            flex-grow: 1;
+            margin: 3px;
+            border: 2px inset var(--mirc-grey);
+            overflow-y: scroll;
+            padding: 5px;
+            font-size: 14px;
+            line-height: 1.2;
+        }
+
+        .system-msg { color: #008000; font-weight: bold; }
+        .xdcc-msg { color: #8a2be2; font-weight: bold; }
+        .instruction-msg { color: #0000ff; background: #eef; border: 1px dashed #0000ff; padding: 2px; margin: 4px 0; font-size: 12px; }
+        .help-msg { color: #800000; font-weight: bold; font-style: italic; }
+        .packet-msg { border-bottom: 1px solid #f0f0f0; padding-bottom: 2px; margin-bottom: 2px; }
+        
+        .cli-header-bar {
+            background: var(--mirc-grey);
+            border-bottom: 1px solid var(--mirc-dark-grey);
+            padding: 4px;
+            display: flex; gap: 4px; align-items: center;
+        }
+
+        .mirc-icon-btn {
+            width: 24px; height: 24px; background: var(--mirc-grey);
+            border: 1px solid; border-color: #fff #808080 #808080 #fff;
+            display: flex; align-items: center; justify-content: center; cursor: pointer;
+        }
+
+        .mirc-icon-btn:active { border-color: #808080 #fff #fff #808080; }
+
+        .cli-input-wrapper {
+            background: white; border: 2px inset var(--mirc-grey);
+            margin: 2px; padding: 4px 8px; display: flex; align-items: center;
+        }
+
+        .cursor { display: inline-block; width: 8px; height: 15px; background: #000; animation: blink 1s infinite; margin-left: 2px; }
+        @keyframes blink { 0%, 49% { opacity: 1; } 50%, 100% { opacity: 0; } }
+
+        .v-keyboard {
+            background: var(--mirc-grey); display: grid; grid-template-columns: repeat(10, 1fr);
+            gap: 2px; padding: 4px; border-top: 1px solid var(--mirc-dark-grey);
+        }
+        .key {
+            background: var(--mirc-grey); border: 1px solid; border-color: #fff #555 #555 #fff;
+            text-align: center; padding: 12px 0; font-size: 14px; cursor: pointer; user-select: none;
+        }
+        .key:active { border-color: #555 #fff #fff #555; background: #d0d0d0; }
+        .key-wide { grid-column: span 2; }
+        .key-blue { color: var(--mirc-blue); font-weight: bold; }
+
+        .mirc-timestamp { color: #808080; font-size: 11px; margin-right: 5px; }
+    </style>
+</head>
+<body>
+
+    <div class="cli-header-bar">
+        <div class="mirc-icon-btn" title="Connect" onclick="log('System', 'Handshake re-synced.')">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg>
+        </div>
+        <div class="mirc-icon-btn" title="Warez" onclick="toggleMode('#warez')">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+        </div>
+        <div class="mirc-icon-btn" title="Software" onclick="toggleMode('#software')">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+        </div>
+        <div class="flex-grow"></div>
+        <div class="text-[10px] bg-white border border-gray-400 px-2 font-bold text-blue-700">
+            LOAD: <span id="load-val">80.0 TB</span>
+        </div>
+        <select id="net-select" class="text-xs border border-gray-400 bg-white" onchange="changeNet(this.value)">
+            <option value="IRCnet">IRCnet</option>
+            <option value="QuakeNet">QuakeNet</option>
+            <option value="EFnet">EFnet</option>
+            <option value="DALnet">DALnet</option>
+        </select>
+    </div>
+
+    <div class="window-frame">
+        <div class="title-bar">
+            <span id="window-title">Status: [IRCNET] root@mobile</span>
+            <div class="flex gap-1">
+                <span class="px-1 border border-white cursor-pointer">_</span>
+                <span class="px-1 border border-white cursor-pointer bg-red-700">X</span>
+            </div>
+        </div>
+        
+        <div id="terminal" class="content-area">
+            <div class="system-msg">*** PacketServ v2.5 Automated Distribution Engine</div>
+            <div class="system-msg">*** Tracking 8,000 RAR chunks in 80TB Warez Cloud.</div>
+            <div class="text-gray-400">--------------------------------------------------</div>
+            <div id="output"></div>
+        </div>
+
+        <div id="chat-view" class="content-area hidden">
+            <div id="chat-output"></div>
+        </div>
+
+        <div class="cli-input-wrapper">
+            <span id="prompt" class="mr-1 font-bold">root:</span>
+            <span id="input-buffer"></span>
+            <span class="cursor"></span>
+        </div>
+    </div>
+
+    <div class="bg-[#c0c0c0] border-t border-white text-[10px] px-2 py-1 flex justify-between shadow-inner">
+        <div>[80TB ACTIVE] <span id="status-net">IRCnet</span> (<span id="user-count">2490</span> users)</div>
+        <div id="clock">12:00:00 PM</div>
+    </div>
+
+    <div class="v-keyboard">
+        <div class="key" onclick="press('Q')">Q</div><div class="key" onclick="press('W')">W</div><div class="key" onclick="press('E')">E</div>
+        <div class="key" onclick="press('R')">R</div><div class="key" onclick="press('T')">T</div><div class="key" onclick="press('Y')">Y</div>
+        <div class="key" onclick="press('U')">U</div><div class="key" onclick="press('I')">I</div><div class="key" onclick="press('O')">O</div>
+        <div class="key" onclick="press('P')">P</div>
+        
+        <div class="key" onclick="press('A')">A</div><div class="key" onclick="press('S')">S</div><div class="key" onclick="press('D')">D</div>
+        <div class="key" onclick="press('F')">F</div><div class="key" onclick="press('G')">G</div><div class="key" onclick="press('H')">H</div>
+        <div class="key" onclick="press('J')">J</div><div class="key" onclick="press('K')">K</div><div class="key" onclick="press('L')">L</div>
+        <div class="key" onclick="backspace()">DEL</div>
+
+        <div class="key key-blue" onclick="toggleMode()">MODE</div>
+        <div class="key" onclick="press('/')">/</div>
+        <div class="key" onclick="press('SEND ')">SEND</div>
+        <div class="key" onclick="press('XDCC ')">XDCC</div>
+        <div class="key" onclick="press('PACKET ')">PACKET</div>
+        <div class="key" onclick="press('Z')">Z</div><div class="key" onclick="press('X')">X</div>
+        <div class="key" onclick="submitCmd()">RET</div>
+
+        <div class="key key-wide" onclick="press(' ')">SPACE</div>
+        <div class="key key-wide" onclick="press('PacketServ ')">PacketServ</div>
+        <div class="key key-wide" onclick="clearTerm()">CLR</div>
+        <div class="key key-wide" onclick="location.reload()">REBOOT</div>
+    </div>
+
+    <script>
+        const softFiles = ["Adobe.Photoshop.v4.rar", "Windows.98.SE.rar", "Office.97.rar", "WinZip.6.3.rar", "3DS.Max.v2.rar", "Norton.AV.rar", "Visual.Basic.5.rar", "CorelDraw.7.rar"];
+        const warezFiles = ["The.Matrix.1999.XviD.rar", "Gladiator.2000.DVD.rar", "Snatch.2000.rar", "Fight.Club.1999.rar", "Memento.2000.rar"];
+        const chatReplies = [
+            "Anyone seen the new aXXo rip?", "mIRC 5.0 is so much better than 4.x", "brb dialup dropped", "Who has the password for the private channel?",
+            "NetSplit incoming! Everybody hold!", "Check #irchelp for the script", "Does anyone still use ICQ?", "DCC me that software.rar",
+            "This channel is invite only now.", "PacketServ is lagging hard today.", "Happy 1997 everyone!", "ASL?", "Where are the cracks for Photoshop?",
+            "Join #hacker for the good stuff.", "Anyone want to play Quake?", "EFnet is the only real network.", "DALnet is for newbies.",
+            "Who is the OP here?", "Stop flooding the channel!", "Matrix movie was insane.", "I need a serial for WinZip.", "How do I use XDCC?",
+            "Type /msg PacketServ xdcc list", "My download is at 56k, so slow.", "I'm downloading the internet today.", "Anyone from London?",
+            "What happened to the #warez channel?", "LOL at the newbie.", "Don't click that link, it's a virus.", "Scripting in mIRC is life.",
+            "I built a bot for #quake.", "Who has the latest Diablo crack?", "Windows 98 is going to be great.", "Is Napster any good?",
+            "DCC get timeout... annoying.", "Reconnecting to QuakeNet.", "What's the topic today?", "No kick please, I was just joking.",
+            "Buying a 56k modem tomorrow.", "Is there a #mac channel?", "Searching for Office 97 keygen.", "The scene is changing.",
+            "PacketServ is the king of XDCC.", "I have 80TB of stuff, no lie.", "Who wants to trade RARs?", "mIRC icons are so retro.",
+            "Can I get voice in #friendly?", "I'm lurking #hacker.", "Testing my new alias script."
+        ];
+
+        let currentCmd = "";
+        let isChatMode = false;
+        let currentNet = "IRCnet";
+        let warezCounter = 0;
+        let packetServCounter = 0;
+
+        function changeNet(net) {
+            currentNet = net;
+            document.getElementById('status-net').innerText = net;
+            log('System', `Migrated packet session to ${net}`);
+        }
+
+        function toggleMode(chan) {
+            isChatMode = !isChatMode;
+            document.getElementById('terminal').classList.toggle('hidden', isChatMode);
+            document.getElementById('chat-view').classList.toggle('hidden', !isChatMode);
+            document.getElementById('prompt').innerText = isChatMode ? "MSG:" : "root:";
+            document.getElementById('window-title').innerText = isChatMode ? `#warez [${currentNet}]` : `Status: [${currentNet}] root@mobile`;
+        }
+
+        function press(char) { currentCmd += char; document.getElementById('input-buffer').innerText = currentCmd; }
+        function backspace() { currentCmd = currentCmd.slice(0, -1); document.getElementById('input-buffer').innerText = currentCmd; }
+        function clearTerm() { document.getElementById('output').innerHTML = ""; document.getElementById('chat-output').innerHTML = ""; }
+
+        function log(sender, msg, type = 'default') {
+            const time = new Date().toLocaleTimeString('en-GB', {hour: '2-digit', minute:'2-digit'});
+            const target = isChatMode ? document.getElementById('chat-output') : document.getElementById('output');
+            const div = document.createElement('div');
+            
+            if (sender === "System") {
+                div.className = "system-msg";
+                div.innerHTML = `*** ${msg}`;
+            } else if (type === 'instruction') {
+                div.className = "instruction-msg";
+                div.innerHTML = `[DOWNLOAD INSTRUCTION] >> ${msg}`;
+            } else if (type === 'help') {
+                div.className = "help-msg";
+                div.innerHTML = `[CLIENT COMMANDS] >> ${msg}`;
+            } else if (sender === "PacketServ") {
+                div.className = "packet-msg";
+                div.innerHTML = `<span class="mirc-timestamp">[${time}]</span> <span class="xdcc-msg">&lt;PacketServ&gt;</span> ${msg}`;
+            } else {
+                div.innerHTML = `<span class="mirc-timestamp">[${time}]</span> <span class="font-bold">&lt;${sender}&gt;</span> ${msg}`;
+            }
+            
+            target.appendChild(div);
+            const parent = target.parentElement;
+            parent.scrollTop = parent.scrollHeight;
+        }
+
+        function submitCmd() {
+            if(!currentCmd) return;
+            const cmdText = currentCmd;
+            log(isChatMode ? "Me" : "root", cmdText, isChatMode);
+            
+            if(cmdText.toUpperCase().includes("XDCC SEND")) {
+                packetServCounter++;
+                log("PacketServ", "Queueing request... Handshake Pending.", isChatMode);
+                checkCounters();
+            }
+
+            currentCmd = "";
+            document.getElementById('input-buffer').innerText = "";
+        }
+
+        function checkCounters() {
+            if (warezCounter % 5 === 0 && warezCounter > 0) {
+                log("System", "To finish download: Type '/msg PacketServ dcc accept' followed by local port 1097.", "instruction");
+            }
+            if (packetServCounter % 10 === 0 && packetServCounter > 0) {
+                log("System", "Available: /list, /join #hacker, /msg PacketServ xdcc list, /dcc ignore off", "help");
+            }
+        }
+
+        function startEngine() {
+            setInterval(() => {
+                const isSoft = Math.random() > 0.4;
+                const file = isSoft ? softFiles[Math.floor(Math.random()*softFiles.length)] : warezFiles[Math.floor(Math.random()*warezFiles.length)];
+                const pack = Math.floor(Math.random()*8000);
+                
+                warezCounter++;
+                log("PacketServ", `[XDCC] #${pack} (Available) ${file} [80TB Node]`);
+                checkCounters();
+
+                // Random chat replies (49 total variants)
+                if(Math.random() > 0.4) {
+                    const nick = "User_" + Math.floor(Math.random()*999);
+                    const msg = chatReplies[Math.floor(Math.random()*chatReplies.length)];
+                    log(nick, msg, isChatMode);
+                }
+            }, 3000);
+
+            setInterval(() => {
+                document.getElementById('clock').innerText = new Date().toLocaleTimeString();
+                document.getElementById('user-count').innerText = Math.floor(Math.random() * (2902 - 492 + 1)) + 492;
+            }, 2000);
+        }
+
+        window.onload = startEngine;
+    </script>
+</body>
+</html>
+

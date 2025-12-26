@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>mIRC v2.18 - 1998 Dialup</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @font-face {
+            font-family: 'Fixedsys';
+            src: url('https://fonts.cdnfonts.com/s/14876/Fixedsys500c.woff') format('woff');
+        }
+
+        :root {
+            --mirc-bg: #c0c0c0;
+            --mirc-border-light: #ffffff;
+            --mirc-border-dark: #808080;
+            --mirc-text: #000000;
+            --mirc-window: #ffffff;
+            --mirc-blue: #000080;
+        }
+
+        body {
+            background-color: #3a6ea5;
+            font-family: 'Fixedsys', 'Courier New', monospace;
+            height: 100vh;
+            margin: 0;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .mirc-window {
+            background: var(--mirc-bg);
+            border: 2px solid;
+            border-color: var(--mirc-border-light) var(--mirc-border-dark) var(--mirc-border-dark) var(--mirc-border-light);
+            padding: 2px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .mirc-title-bar {
+            background: linear-gradient(90deg, var(--mirc-blue), #1084d0);
+            color: white;
+            padding: 3px 6px;
+            font-weight: bold;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 14px;
+        }
+
+        .mirc-content {
+            background: var(--mirc-window);
+            border: 2px inset var(--mirc-bg);
+            flex-grow: 1;
+            overflow-y: scroll;
+            padding: 5px;
+            font-size: 14px;
+            line-height: 1.2;
+        }
+
+        .user-list {
+            width: 150px;
+            background: var(--mirc-window);
+            border: 2px inset var(--mirc-bg);
+            overflow-y: scroll;
+            font-size: 14px;
+        }
+
+        .input-area {
+            background: var(--mirc-window);
+            border: 2px inset var(--mirc-bg);
+            padding: 2px 5px;
+            outline: none;
+            width: 100%;
+        }
+
+        .btn-retro {
+            background: var(--mirc-bg);
+            border: 2px solid;
+            border-color: var(--mirc-border-light) var(--mirc-border-dark) var(--mirc-border-dark) var(--mirc-border-light);
+            padding: 2px 10px;
+            cursor: pointer;
+            font-size: 12px;
+            color: black;
+            white-space: nowrap;
+        }
+
+        .btn-retro:active, .btn-active {
+            border-color: var(--mirc-border-dark) var(--mirc-border-light) var(--mirc-border-light) var(--mirc-border-dark);
+            background: #d0d0d0;
+            padding: 3px 9px 1px 11px;
+        }
+
+        .timestamp { color: #808080; }
+        .nick { font-weight: bold; color: #0000ff; }
+        .system { color: #008000; }
+        .ops { color: #ff0000; font-weight: bold; }
+        .dl-text { color: #800080; font-weight: bold; }
+
+        .dl-panel {
+            background: #d0d0d0;
+            border-top: 2px solid #808080;
+            max-height: 150px;
+            overflow-y: auto;
+            display: none;
+        }
+
+        .dl-row {
+            display: grid; grid-template-columns: 180px 1fr 60px 80px;
+            gap: 10px; padding: 4px; font-size: 11px;
+            border-bottom: 1px solid #a0a0a0; align-items: center;
+        }
+
+        .progress-container { height: 10px; background: #fff; border: 1px solid #808080; }
+        .progress-fill { height: 100%; background: #000080; width: 0%; transition: width 0.1s; }
+
+        .notepad-window {
+            position: absolute; top: 10%; left: 10%; width: 80%; height: 70%;
+            z-index: 100; box-shadow: 10px 10px 20px rgba(0,0,0,0.3);
+        }
+    </style>
+</head>
+<body>
+
+    <div class="flex flex-col h-full p-1 gap-1">
+        <div class="mirc-window p-1 flex flex-row gap-2 items-center text-sm">
+            <button class="btn-retro font-bold" id="btn-connect" onclick="startSimulation()">Connect</button>
+            <button class="btn-retro" onclick="toggleDownloads()">DCC Status</button>
+            <button class="btn-retro" onclick="openCatalog()">View 60k Album Catalog</button>
+            <div class="ml-auto flex items-center gap-2">
+                <span id="burst-indicator" class="text-xs bg-red-100 text-red-800 px-1 hidden font-bold">BURST ACTIVE</span>
+                <span id="clock" class="text-xs">00:00:00</span>
+            </div>
+        </div>
+
+        <div class="flex flex-row flex-grow gap-1 overflow-hidden relative">
+            <div class="mirc-window flex-grow">
+                <div class="mirc-title-bar">
+                    <span id="channel-title">#social - [mIRC Cloud]</span>
+                </div>
+                <div id="chat-output" class="mirc-content">
+                    <div class="system">*** High-Throughput Burst Mode Enabled: 5 msgs / 4 sec in #download</div>
+                    <div class="system">*** Dataset: 60,000 Music Albums loaded.</div>
+                </div>
+                <input type="text" id="chat-input" class="input-area" placeholder="/msg get download #AlbumName">
+            </div>
+
+            <div class="mirc-window">
+                <div class="mirc-title-bar"><span id="user-count">Users</span></div>
+                <div id="user-list" class="user-list h-full"></div>
+            </div>
+
+            <!-- Notepad Overlay -->
+            <div id="notepad" class="mirc-window notepad-window hidden">
+                <div class="mirc-title-bar">
+                    <span>Notepad - AlbumCatalog_60000.txt</span>
+                    <button onclick="document.getElementById('notepad').classList.add('hidden')" class="bg-red-500 px-2 border border-white">X</button>
+                </div>
+                <textarea id="notepad-content" class="mirc-content w-full h-full font-mono text-xs p-4 outline-none resize-none" readonly></textarea>
+            </div>
+        </div>
+
+        <div id="dl-panel" class="dl-panel mirc-window">
+            <div class="bg-blue-900 text-white px-2 py-1 text-xs font-bold">DCC Get Transfers (200 KB/s Limit)</div>
+            <div id="dl-list"></div>
+        </div>
+
+        <div class="mirc-window p-px flex flex-row overflow-x-auto" id="switchbar"></div>
+
+        <div class="mirc-window p-1 flex justify-between text-xs">
+            <div>Status: <span id="status-text">Disconnected</span> | Net: <span id="net-id">CLOUD-RELAY</span></div>
+            <div>DCC Slots: <span id="slot-count">0/10</span></div>
+        </div>
+    </div>
+
+    <script>
+        const channelList = ["#social", "#download", "#music", "#admin"];
+        const artists = ["Metallica", "Megadeth", "Slayer", "Anthrax", "Iron Maiden", "Black Sabbath", "Pantera", "Sepultura"];
+        const albumSuffix = ["Remastered", "Live 1991", "Collectors Edition", "Studio Masters", "Bonus Tracks", "Bootleg"];
+        
+        let activeChannel = "#social";
+        let channelData = {}; 
+        let activeDownloads = [];
+        let simulationRunning = false;
+        let burstInterval;
+
+        // Initialize Channels
+        channelList.forEach(chan => {
+            channelData[chan] = {
+                messages: [`<div class="system">*** Now talking in ${chan}</div>`],
+                users: Array.from({length: 30}, (_, i) => ({
+                    nick: artists[i % artists.length].replace(' ', '') + Math.floor(Math.random()*99),
+                    rank: i === 0 ? "@" : ""
+                }))
+            };
+        });
+
+        function switchChannel(chan) {
+            if(!channelData[chan]) return;
+            activeChannel = chan;
+            document.getElementById('channel-title').innerText = `${chan} - [mIRC Cloud]`;
+            renderChat();
+            renderUsers();
+            renderSwitchbar();
+        }
+
+        function renderChat() {
+            const out = document.getElementById('chat-output');
+            out.innerHTML = channelData[activeChannel].messages.join('');
+            out.scrollTop = out.scrollHeight;
+        }
+
+        function renderUsers() {
+            const list = document.getElementById('user-list');
+            list.innerHTML = "";
+            channelData[activeChannel].users.forEach(u => {
+                const div = document.createElement('div');
+                div.className = 'px-2 py-px truncate ' + (u.rank === "@" ? "ops" : "");
+                div.innerText = u.rank + u.nick;
+                list.appendChild(div);
+            });
+            document.getElementById('user-count').innerText = `${channelData[activeChannel].users.length} Users`;
+        }
+
+        function renderSwitchbar() {
+            const bar = document.getElementById('switchbar');
+            bar.innerHTML = "";
+            channelList.forEach(chan => {
+                const btn = document.createElement('button');
+                btn.className = `btn-retro switchbar-btn ${activeChannel === chan ? 'btn-active font-bold' : ''}`;
+                btn.innerText = chan;
+                btn.onclick = () => switchChannel(chan);
+                bar.appendChild(btn);
+            });
+        }
+
+        function addMessage(chan, nick, text, colorClass = "") {
+            const time = new Date().toLocaleTimeString('en-GB', {hour: '2-digit', minute:'2-digit'});
+            let html = `<div class="mb-1"><span class="timestamp">[${time}]</span> `;
+            html += nick === "System" ? `<span class="system">${text}</span>` : `<span class="nick ${colorClass}">&lt;${nick}&gt;</span> ${text}`;
+            html += `</div>`;
+            if(!channelData[chan]) return;
+            channelData[chan].messages.push(html);
+            if(channelData[chan].messages.length > 100) channelData[chan].messages.shift();
+            if(chan === activeChannel) renderChat();
+        }
+
+        function handleCommand(input) {
+            const parts = input.split(' ');
+            const cmd = parts[0].toLowerCase();
+            if (cmd === "/msg" && parts[1] === "get" && parts[2] === "download") {
+                startDownload(parts[3] || "#MasterOfPuppets");
+            } else if (cmd === "/join") {
+                switchChannel(parts[1].startsWith('#') ? parts[1] : '#' + parts[1]);
+            }
+        }
+
+        function startDownload(name) {
+            if (activeDownloads.length >= 10) return addMessage(activeChannel, "System", "*** Slots Full.");
+            activeDownloads.push({
+                id: Math.random(), name: name.replace('#','') + ".zip",
+                size: 100 * 1024, progress: 0, speed: 200
+            });
+            addMessage("#download", "DCC_Serv", `Sending ${name}...`, "dl-text");
+            document.getElementById('dl-panel').style.display = 'block';
+            updateNetDisplay();
+        }
+
+        function updateDlUI() {
+            const list = document.getElementById('dl-list');
+            list.innerHTML = "";
+            activeDownloads.forEach(dl => {
+                const perc = ((dl.progress / dl.size) * 100).toFixed(1);
+                list.innerHTML += `<div class="dl-row"><div>${dl.name}</div><div class="progress-container"><div class="progress-fill" style="width:${perc}%"></div></div><div>${perc}%</div><div class="text-right">200 KB/s</div></div>`;
+            });
+        }
+
+        function updateNetDisplay() {
+            document.getElementById('slot-count').innerText = `${activeDownloads.length}/10`;
+        }
+
+        function openCatalog() {
+            const notepad = document.getElementById('notepad');
+            const content = document.getElementById('notepad-content');
+            notepad.classList.remove('hidden');
+            let data = "MIRC CLOUD ALBUM DATABASE - 60,000 ENTRIES\n" + "=".repeat(45) + "\n";
+            for(let i=1; i<=200; i++) { // Sample of the 60k to prevent browser hang, representing the dataset
+                const art = artists[i % artists.length];
+                data += `ID: ${String(i).padStart(5, '0')} | Artist: ${art.padEnd(12)} | Album: #${art.replace(' ', '')}_Vol_${i} | Size: 100MB\n`;
+            }
+            data += "... [Truncated for UI performance: 59,800 entries hidden] ...";
+            content.value = data;
+        }
+
+        function startSimulation() {
+            if(simulationRunning) return;
+            simulationRunning = true;
+            document.getElementById('status-text').innerText = "Connected";
+            document.getElementById('btn-connect').disabled = true;
+
+            // 5 messages per 4 seconds burst in #download
+            setInterval(() => {
+                const indicator = document.getElementById('burst-indicator');
+                indicator.classList.remove('hidden');
+                let count = 0;
+                const burst = setInterval(() => {
+                    const art = artists[Math.floor(Math.random()*artists.length)];
+                    const album = `#${art.replace(' ', '')}_${Math.floor(Math.random()*60000)}`;
+                    addMessage("#download", "CloudBot", `New Album Indexed: ${album} - Type /msg get download ${album} to fetch.`);
+                    count++;
+                    if(count >= 5) {
+                        clearInterval(burst);
+                        setTimeout(() => indicator.classList.add('hidden'), 500);
+                    }
+                }, 200); // 200ms spacing for the 5 msgs
+            }, 4000);
+
+            // Download progress ticker
+            setInterval(() => {
+                activeDownloads.forEach((dl, i) => {
+                    dl.progress += dl.speed;
+                    if(dl.progress >= dl.size) {
+                        addMessage("#download", "System", `*** Download ${dl.name} complete.`);
+                        activeDownloads.splice(i, 1);
+                        updateNetDisplay();
+                    }
+                });
+                updateDlUI();
+            }, 1000);
+        }
+
+        window.onload = () => {
+            renderSwitchbar();
+            renderUsers();
+            setInterval(() => document.getElementById('clock').innerText = new Date().toLocaleTimeString(), 1000);
+        };
+
+        document.getElementById('chat-input').addEventListener('keypress', function(e) {
+            if(e.key === 'Enter' && this.value.trim() !== "") {
+                const val = this.value.trim();
+                val.startsWith('/') ? handleCommand(val) : addMessage(activeChannel, "Me", val);
+                this.value = "";
+            }
+        });
+    </script>
+</body>
+</html>

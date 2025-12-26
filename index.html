@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+      <title>mIRC v2.7 #IRCnet #QuakeNet #EFnet #DALnet</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @font-face {
+            font-family: 'Fixedsys';
+            src: url('https://fonts.cdnfonts.com/s/14876/Fixedsys500c.woff') format('woff');
+        }
+
+        :root {
+            --mirc-bg: #ffffff;
+            --mirc-grey: #c0c0c0;
+            --mirc-dark-grey: #808080;
+            --mirc-blue: #000080;
+            --mirc-text: #000000;
+        }
+
+        body {
+            background-color: #3a6ea5;
+            color: var(--mirc-text);
+            font-family: 'Fixedsys', 'Courier New', monospace;
+            height: 100vh;
+            margin: 0;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .window-frame {
+            background: var(--mirc-grey);
+            border: 2px solid;
+            border-color: #fff var(--mirc-dark-grey) var(--mirc-dark-grey) #fff;
+            display: flex;
+            flex-direction: column;
+            flex-grow: 1;
+            margin: 2px;
+            box-shadow: 1px 1px 0px #000;
+        }
+
+        .title-bar {
+            background: linear-gradient(90deg, var(--mirc-blue), #1084d0);
+            color: white;
+            padding: 3px 6px;
+            font-size: 11px;
+            font-weight: bold;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            height: 24px;
+        }
+
+        .content-area {
+            background: white;
+            flex-grow: 1;
+            margin: 3px;
+            border: 2px inset var(--mirc-grey);
+            overflow-y: scroll;
+            padding: 5px;
+            font-size: 13px;
+            line-height: 1.1;
+            scrollbar-width: thin;
+        }
+
+        /* Speed Scrolling optimized */
+        #output-container::-webkit-scrollbar { width: 8px; }
+        #output-container::-webkit-scrollbar-thumb { background: var(--mirc-dark-grey); }
+
+        .system-msg { color: #008000; font-weight: bold; }
+        .xdcc-msg { color: #8a2be2; font-size: 12px; }
+        .packet-msg { border-bottom: 1px solid #f2f2f2; white-space: nowrap; }
+        .radio-msg { color: #ff00ff; font-weight: bold; border: 1px solid #ff00ff; padding: 1px; margin: 2px 0; }
+        
+        .cli-header-bar {
+            background: var(--mirc-grey);
+            border-bottom: 1px solid var(--mirc-dark-grey);
+            padding: 4px;
+            display: flex; gap: 4px; align-items: center; overflow-x: auto;
+        }
+
+        .mirc-icon-btn {
+            flex-shrink: 0;
+            width: 24px; height: 24px; background: var(--mirc-grey);
+            border: 1px solid; border-color: #fff #808080 #808080 #fff;
+            display: flex; align-items: center; justify-content: center; cursor: pointer;
+        }
+
+        .cli-input-wrapper {
+            background: white; border: 2px inset var(--mirc-grey);
+            margin: 2px; padding: 4px 8px; display: flex; align-items: center;
+        }
+
+        .cursor { display: inline-block; width: 8px; height: 15px; background: #000; animation: blink 1s infinite; }
+        @keyframes blink { 0%, 49% { opacity: 1; } 50%, 100% { opacity: 0; } }
+
+        .v-keyboard {
+            background: var(--mirc-grey); display: grid; grid-template-columns: repeat(10, 1fr);
+            gap: 1px; padding: 2px; border-top: 1px solid var(--mirc-dark-grey);
+        }
+        .key {
+            background: var(--mirc-grey); border: 1px solid; border-color: #fff #555 #555 #fff;
+            text-align: center; padding: 10px 0; font-size: 11px; cursor: pointer; user-select: none;
+        }
+        .key:active { border-color: #555 #fff #fff #555; background: #d0d0d0; }
+        .key-wide { grid-column: span 2; }
+        .key-blue { color: var(--mirc-blue); font-weight: bold; }
+
+        .stats-tag { font-size: 9px; background: #000; color: #0f0; padding: 0 3px; border-radius: 2px; margin-right: 4px; }
+        
+        .footer-status {
+            background: var(--mirc-grey);
+            border-top: 1px solid #fff;
+            padding: 2px 5px;
+            font-size: 10px;
+            display: flex;
+            justify-content: space-between;
+            color: #000;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="cli-header-bar">
+        <div class="mirc-icon-btn" title="Napster" onclick="log('System', 'Searching Napster Network [3899 MP3s]...')">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+        </div>
+        <div class="mirc-icon-btn" title="Mobile Packets" onclick="log('System', 'Scanning 5004 Android / 4949 iOS packets...')">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
+        </div>
+        <div class="mirc-icon-btn" title="PirateBay" onclick="log('System', 'P2P Network Hash Check: 2203 entries found.')">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+        </div>
+        <div class="mirc-icon-btn" title="Radio" onclick="startRadio()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h.01"/><path d="M7 12h.01"/><path d="M11 12h.01"/><path d="M15 12h.01"/><path d="M19 12h.01"/><path d="M21 12v10"/><path d="M21 6V2"/><path d="M21 10h.01"/><path d="M12 18H3"/><path d="M21 18h-5"/></svg>
+        </div>
+        <div class="flex-grow"></div>
+        <div class="text-[9px] font-bold text-red-600 px-1 border border-red-600 bg-white">NODES: 3,000,000</div>
+    </div>
+
+    <div class="window-frame">
+        <div class="title-bar">
+            <span>mIRC v5.91 - [PacketServ Client Software]</span>
+            <div class="flex gap-1">
+                <span class="px-1 border border-white cursor-pointer bg-red-700">X</span>
+            </div>
+        </div>
+        
+        <div id="output-container" class="content-area">
+            <div class="system-msg">*** PacketServ v2.7 - HIGH-VELOCITY DATASET CLONE</div>
+            <div class="system-msg">*** Loaded: 350,000 XDCC slots | 39,393 Warez Randoms</div>
+            <div class="system-msg">*** Crawling Million-Row CSV Datasets...</div>
+            <div id="output"></div>
+        </div>
+
+        <div class="cli-input-wrapper">
+            <span class="mr-1 font-bold text-blue-800">C:\PACKETSERV></span>
+            <span id="input-buffer"></span>
+            <span class="cursor"></span>
+        </div>
+    </div>
+
+    <div class="footer-status">
+        <div id="status-text">Ready.</div>
+        <div id="clock">--:--:-- --</div>
+    </div>
+
+    <div class="v-keyboard">
+        <div class="key" onclick="press('Q')">Q</div><div class="key" onclick="press('W')">W</div><div class="key" onclick="press('E')">E</div>
+        <div class="key" onclick="press('R')">R</div><div class="key" onclick="press('T')">T</div><div class="key" onclick="press('Y')">Y</div>
+        <div class="key" onclick="press('U')">U</div><div class="key" onclick="press('I')">I</div><div class="key" onclick="press('O')">O</div>
+        <div class="key" onclick="press('P')">P</div>
+        <div class="key" onclick="press('A')">A</div><div class="key" onclick="press('S')">S</div><div class="key" onclick="press('D')">D</div>
+        <div class="key" onclick="press('F')">F</div><div class="key" onclick="press('G')">G</div><div class="key" onclick="press('H')">H</div>
+        <div class="key" onclick="press('J')">J</div><div class="key" onclick="press('K')">K</div><div class="key" onclick="press('L')">L</div>
+        <div class="key" onclick="backspace()">DEL</div>
+        <div class="key key-blue" onclick="press('/GET ')">/GET</div>
+        <div class="key key-blue" onclick="press('/FETCH ')">/FETCH</div>
+        <div class="key" onclick="press('XDCC ')">XDCC</div>
+        <div class="key" onclick="press('SEND ')">SEND</div>
+        <div class="key" onclick="press('RAR ')">RAR</div>
+        <div class="key" onclick="press('.')">.</div>
+        <div class="key" onclick="press(' ')">SPC</div>
+        <div class="key key-wide key-blue" onclick="submitCmd()">EXECUTE</div>
+        <div class="key" onclick="clearTerm()">CLR</div>
+        <div class="key" onclick="location.reload()">RBT</div>
+    </div>
+
+    <script>
+        const categories = {
+            napster: ["Artist - Song_Title.mp3", "Metallica - Enter_Sandman.mp3", "Dr_Dre - Still_DRE.mp3", "Britney - Toxic_Rare.mp3"],
+            ios: ["iOS_17_Internal_Alpha.ipsw", "Cracked_App_Pack_v2.ipa", "Cydia_Substrate_Clone.ipa", "Jailbreak_v9.ipa"],
+            android: ["Termux_v0.118_Mod.apk", "Lucky_Patcher_Pro_Full.apk", "Android_Root_Kit_2025.apk", "OG_Insta_Mod.apk"],
+            windows: ["Photoshop_CS_Full.exe", "Winrar_v7.0_Final.exe", "Winzip_28_Pro.exe", "Diablo_II_LOD.exe", "Office_97_XP.iso"],
+            tpb: ["Torrent_Pack_9330.zip", "Pirate_Bay_Proxy_List.txt", "Magnet_Link_Million_Dataset.csv", "TPB_Historical_Dump.rar"],
+            warez: ["Scene_Release_Group_A.rar", "Full_Movie_DivX_Rip.avi", "Dixv_Player_v2.rar", "Codec_Pack_Mega.exe"]
+        };
+
+        let currentCmd = "";
+        let packetInterval = null;
+        let totalPackets = 0;
+
+        function press(char) { 
+            currentCmd += char; 
+            document.getElementById('input-buffer').innerText = currentCmd; 
+        }
+
+        function backspace() { 
+            currentCmd = currentCmd.slice(0, -1); 
+            document.getElementById('input-buffer').innerText = currentCmd; 
+        }
+
+        function clearTerm() { 
+            document.getElementById('output').innerHTML = ""; 
+        }
+
+        function log(sender, msg, type = 'default') {
+            const time = new Date().toLocaleTimeString('en-GB', {hour: '2-digit', minute:'2-digit', second:'2-digit'});
+            const output = document.getElementById('output');
+            const div = document.createElement('div');
+            
+            if (sender === "System") {
+                div.className = "system-msg";
+                div.innerHTML = `*** ${msg}`;
+            } else if (type === 'radio') {
+                div.className = "radio-msg";
+                div.innerHTML = `[RADIO-STREAM] >> ${msg}`;
+            } else {
+                div.className = "packet-msg";
+                div.innerHTML = `<span class="text-gray-400 text-[10px]">[${time}]</span> <span class="stats-tag">#${totalPackets}</span> <span class="xdcc-msg">&lt;${sender}&gt;</span> ${msg}`;
+            }
+            
+            output.appendChild(div);
+            
+            // Performance cleanup
+            if(output.children.length > 250) {
+                output.removeChild(output.firstChild);
+            }
+            
+            const container = document.getElementById('output-container');
+            container.scrollTop = container.scrollHeight;
+        }
+
+        function submitCmd() {
+            if(!currentCmd) return;
+            const cmdText = currentCmd;
+            log("USER", cmdText);
+            
+            if(cmdText.includes("/FETCH") || cmdText.includes("/GET")) {
+                log("System", "Bypassing protocols... Fetching millions of packets from dataset.");
+                burstMode();
+            } else if(cmdText.toLowerCase().includes("winrar") || cmdText.toLowerCase().includes("winzip")) {
+                log("PacketServ", "Searching software archive for Compression Utilities...");
+                setTimeout(() => log("PacketServ", "[XDCC] #8849 Found: WinRAR_v7.0_Universal_Crack.exe"), 500);
+            }
+            
+            currentCmd = "";
+            document.getElementById('input-buffer').innerText = "";
+        }
+
+        function burstMode() {
+            for(let i=0; i<30; i++) {
+                setTimeout(() => {
+                    const keys = Object.keys(categories);
+                    const cat = keys[Math.floor(Math.random()*keys.length)];
+                    const list = categories[cat];
+                    const file = list[Math.floor(Math.random()*list.length)];
+                    totalPackets++;
+                    log("PacketServ", `[XDCC] #${totalPackets} (SLOT: ${Math.floor(Math.random()*350000)}) ${file}`);
+                }, i * 40);
+            }
+        }
+
+        function startRadio() {
+            log("System", "Tuning into Global PacketServ Radio...", "radio");
+            const stations = ["Trance Energy FM", "Pirate Radio 101", "Techno Pulse", "Underground HipHop"];
+            setInterval(() => {
+                log("RADIO", `Now Playing: ${stations[Math.floor(Math.random()*stations.length)]} - Node ${Math.floor(Math.random()*3000000)}`, "radio");
+            }, 8000);
+        }
+
+        function startEngine() {
+            packetInterval = setInterval(() => {
+                const keys = Object.keys(categories);
+                const cat = keys[Math.floor(Math.random()*keys.length)];
+                const list = categories[cat];
+                const file = list[Math.floor(Math.random()*list.length)];
+                totalPackets++;
+                log("PacketServ", `[XDCC] #${totalPackets} [${cat.toUpperCase()}] ${file}`);
+            }, 1200);
+        }
+
+        window.onload = () => {
+            startEngine();
+            setInterval(() => {
+                const clockEl = document.getElementById('clock');
+                if (clockEl) {
+                    clockEl.innerText = new Date().toLocaleTimeString();
+                }
+            }, 1000);
+        };
+    </script>
+</body>
+</html>
